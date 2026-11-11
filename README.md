@@ -2,8 +2,6 @@
 
 A public bilingual storefront and browser-persisted cart. It uses Next.js 16 App Router, React, strict TypeScript, next-intl, TanStack Query, Axios, Styled Components, Zustand, Context, Formik, and Yup.
 
-[Store Figma](https://www.figma.com/design/aBoAP7KFIxso9LMoxl1QQl/NOVA-%E2%80%94-Store-UI-Design?node-id=1-53) · [Screenshots](docs/screenshots)
-
 ## Run locally
 
 Use Node 24.18.0 and pnpm 10.14.0.
