@@ -8,13 +8,6 @@ Use Node 24.18.0 and pnpm 10.14.0.
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Persian is the default locale. The English homepage is at `/en`. Set `SITE_URL` to the public origin when deploying so metadata and sitemap URLs use that origin. Set it before building. Optional `NEXT_PUBLIC_NOVA_*_URL` entries in `.env.example` enable links for the corresponding footer icons.
 
-```powershell
-pnpm typecheck
-pnpm lint
-pnpm build
-pnpm start
-```
-
 ## Architecture
 
 | Location                                   | Responsibility                                                                              |
@@ -33,18 +26,4 @@ Theme initializes from a preference cookie. The Zustand cart persists item snaps
 
 ## SEO and metadata
 
-`app/robots.ts` allows the public catalog and excludes `/api/` and both locale cart routes. `app/sitemap.ts` lists both locale homepages plus every product with `hreflang` alternates; it falls back to the homepages if the catalog is unavailable. Locale layouts set `metadataBase`, canonical URLs, locale-specific titles and descriptions, Open Graph data and indexable robots defaults. Product pages add their own title, description, canonical and language alternates. The cart is `noindex, follow`.
-
-## Screenshots
-
-| Desktop home                                             | Mobile home                                            | Mobile product                                               |
-| -------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
-| ![Desktop home](docs/screenshots/store-home-desktop.png) | ![Mobile home](docs/screenshots/store-home-mobile.png) | ![Mobile product](docs/screenshots/store-product-mobile.png) |
-
-## Scope, assumptions, and time
-
-The implementation was organized in three passes — scaffold, feature work, and a final test/documentation pass — within the challenge’s suggested 2–3 working-day window. Commit history reflects those passes.
-
-Assumptions: FakeStoreAPI is the only backend; API prices are display-only mock amounts shown as toman; catalog copy comes from the API in English while UI chrome is bilingual; the cart, theme and locale preferences are browser-local; the contact form uses a `mailto:` address; admin and store are independent repositories.
-
-Out of scope: real authentication or authorization, payment and checkout, product image storage, server-side carts, newsletter delivery, analytics, and deployment infrastructure.
+`app/robots.ts` allows the public catalog and excludes `/api/` and both locale cart routes. `app/sitemap.ts` lists both locale homepages plus every product with `hreflang` alternates; it falls back to the homepages if the catalog is unavailable. Locale layouts set `metadataBase`, canonical URLs, locale-specific titles and descriptions, Open Graph data and indexable robots defaults. Product pages add their own title, description, canonical and language alternates.
