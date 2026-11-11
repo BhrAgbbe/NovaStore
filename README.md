@@ -6,12 +6,6 @@ A public bilingual storefront and browser-persisted cart. It uses Next.js 16 App
 
 Use Node 24.18.0 and pnpm 10.14.0.
 
-```powershell
-pnpm install --frozen-lockfile
-Copy-Item .env.example .env.local
-pnpm dev
-```
-
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Persian is the default locale. The English homepage is at `/en`. Set `SITE_URL` to the public origin when deploying so metadata and sitemap URLs use that origin. Set it before building. Optional `NEXT_PUBLIC_NOVA_*_URL` entries in `.env.example` enable links for the corresponding footer icons.
 
 ```powershell
