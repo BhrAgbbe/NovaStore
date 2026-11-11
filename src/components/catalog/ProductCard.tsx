@@ -1,5 +1,7 @@
 "use client";
 
+import CategoryBadge from "@/shared/CategoryBadge";
+import { Link } from "@/dictionary/navigation";
 import { useTranslations } from "next-intl";
 import styled from "styled-components";
 import { Button } from "@/shared/controls";
@@ -9,6 +11,7 @@ import { Category } from "@/types/enums/catalog";
 import type { Product } from "@/types/product";
 import { groupCategory } from "@/utils/catalog";
 import { formatNumber, formatPrice, type Locale } from "@/utils/format";
+import { productPath } from "@/utils/routes";
 
 const Card = styled.article`
   background: var(--surface);
@@ -18,8 +21,28 @@ const Card = styled.article`
   display: flex;
   flex-direction: column;
   min-width: 0;
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+    img {
+      transition: transform 0.24s ease;
+    }
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px #101e3b22;
+    }
+    &:hover img {
+      transform: scale(1.025);
+    }
+  }
+  .image-wrap {
+    position: relative;
+  }
+  .product-link { display: block; color: inherit; }
+  .product-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
   .photo {
-    min-height: 110px;
+    aspect-ratio: 4 / 3;
   }
   .body {
     padding: 14px;
@@ -30,12 +53,10 @@ const Card = styled.article`
     flex: 1;
   }
   .pill {
-    padding: 3px 12px;
-    border: 1px solid var(--line);
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 18px;
-    border-radius: 18px;
+    align-self: flex-start;
+    [dir="rtl"] & {
+      align-self: flex-end;
+    }
   }
   h3 {
     font-size: 14px;
@@ -53,29 +74,21 @@ const Card = styled.article`
     font-size: 15px;
     margin-block-start: auto;
   }
-  button {
+  .body button {
     width: 100%;
   }
-  button .nova-icon {
+  .body button .nova-icon {
     display: none;
   }
   @media (min-width: 768px) {
-    .photo {
-      min-height: 160px;
-    }
     h3 {
       font-size: 17px;
     }
     .price {
       font-size: 20px;
     }
-    button .nova-icon {
+    .body button .nova-icon {
       display: inline-block;
-    }
-  }
-  @media (min-width: 1024px) {
-    .photo {
-      min-height: 224px;
     }
   }
 `;
@@ -94,24 +107,30 @@ export default function ProductCard({
   const t = useTranslations("Store");
   const group = groupCategory(product.category);
   return (
-    <Card>
-      <ProductPhoto className="photo" src={product.image} />
-      <div className="body">
-        <span className="pill">{group === Category.All ? product.category : t(group)}</span>
-        <h3 dir="auto">{product.title}</h3>
-        {product.rating && (
-          <div className="rating" aria-label={t("rating", product.rating)}>
-            <Icon name="star" size={18} />
-            {formatNumber(product.rating.rate, locale)} (
-            {formatNumber(product.rating.count, locale)})
-          </div>
-        )}
-        <strong className="price">{formatPrice(product.price, locale)}</strong>
-        <Button type="button" disabled={disabled} onClick={() => onAdd(product)}>
-          <Icon name="bag" size={17} />
-          {t("add")}
-        </Button>
-      </div>
-    </Card>
+      <Card>
+        <Link className="product-link image-wrap" href={productPath(product.id)} aria-label={t("productDetails", { name: product.title })}>
+          <ProductPhoto className="photo" src={product.image} />
+        </Link>
+        <div className="body">
+          <CategoryBadge
+            className="pill"
+            category={group}
+            label={group === Category.All ? product.category : t(group)}
+          />
+          <h3 dir="auto"><Link href={productPath(product.id)}>{product.title}</Link></h3>
+          {product.rating && (
+            <div className="rating" aria-label={t("rating", product.rating)}>
+              <Icon name="star" size={18} />
+              {formatNumber(product.rating.rate, locale)} (
+              {formatNumber(product.rating.count, locale)})
+            </div>
+          )}
+          <strong className="price">{formatPrice(product.price, locale)}</strong>
+          <Button type="button" disabled={disabled} onClick={() => onAdd(product)}>
+            <Icon name="bag" size={17} />
+            {t("add")}
+          </Button>
+        </div>
+      </Card>
   );
 }

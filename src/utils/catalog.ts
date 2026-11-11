@@ -40,11 +40,21 @@ export function writeCatalogQuery(query: CatalogQuery) {
   return params.size ? "?" + params.toString() : "";
 }
 
-export function selectCatalog(products: readonly Product[], query: CatalogQuery, locale: Locale) {
+export function selectCatalog(
+  products: readonly Product[],
+  query: CatalogQuery,
+  locale: Locale,
+  categoryLabel: (category: Category) => string
+) {
   const term = normalizeSearch(query.q);
   const matches = products.filter(
     (product) =>
-      normalizeSearch(product.title).includes(term) &&
+      [
+        product.title,
+        product.category,
+        categoryLabel(groupCategory(product.category)),
+        groupCategory(product.category),
+      ].some((label) => normalizeSearch(label).includes(term)) &&
       (query.category === Category.All || groupCategory(product.category) === query.category)
   );
   if (query.sort === Sort.PriceAscending) matches.sort((a, b) => a.price - b.price);

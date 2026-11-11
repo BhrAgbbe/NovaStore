@@ -119,21 +119,26 @@ createServer(async (req, res) => {
     send(res, 200, categories);
     return;
   }
-  if (pathname === "/products") {
+  const filter = pathname.startsWith("/products/category/")
+    ? decodeURIComponent(pathname.slice("/products/category/".length))
+    : null;
+  if (pathname === "/products" || filter) {
     send(
       res,
       200,
       mode === "empty"
         ? []
-        : catalog.map(([photo, fa, en, price, rate, count, category], index) => ({
-            id: index + 1,
-            title: locale === "fa" ? fa : en,
-            description: "NOVA fixture",
-            price,
-            rating: { rate, count },
-            category: categories[category],
-            image: base + "/photos/" + photo + ".jpg",
-          }))
+        : catalog
+            .map(([photo, fa, en, price, rate, count, category], index) => ({
+              id: index + 1,
+              title: locale === "fa" ? fa : en,
+              description: "NOVA fixture",
+              price,
+              rating: { rate, count },
+              category: categories[category],
+              image: base + "/photos/" + photo + ".jpg",
+            }))
+            .filter((item) => !filter || item.category === filter)
     );
     return;
   }

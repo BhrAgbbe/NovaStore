@@ -10,10 +10,11 @@ const Media = styled.div`
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: #e7e2df;
+  background: #fff;
   color: #4e5d72;
   img {
-    object-fit: cover;
+    object-fit: contain;
+    padding: 10px;
   }
 `;
 

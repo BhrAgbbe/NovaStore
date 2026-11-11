@@ -102,9 +102,10 @@ interface StateProps {
   readonly detail: string;
   readonly action: string;
   readonly onAction?: () => void;
+  readonly disabled?: boolean;
   readonly href?: string;
 }
-export function EmptyState({ icon, title, detail, action, onAction, href }: StateProps) {
+export function EmptyState({ icon, title, detail, action, onAction, href, disabled }: StateProps) {
   return (
     <State>
       <span className="tile">
@@ -117,7 +118,7 @@ export function EmptyState({ icon, title, detail, action, onAction, href }: Stat
           {action}
         </ButtonLink>
       ) : (
-        <Button type="button" $kind="secondary" onClick={onAction}>
+        <Button type="button" $kind="secondary" onClick={onAction} disabled={disabled}>
           {action}
         </Button>
       )}

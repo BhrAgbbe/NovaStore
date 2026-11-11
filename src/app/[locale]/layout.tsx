@@ -7,6 +7,7 @@ import { Suspense, type ReactNode } from "react";
 import StoreHeader from "@/components/layout/StoreHeader";
 import StoreFooter from "@/components/layout/StoreFooter";
 import CartHydration from "@/context/CartHydration";
+import StoreProviders from "@/context/StoreProviders";
 import StyledRegistry from "@/context/StyledRegistry";
 import { ThemeProvider } from "@/context/theme";
 import { isLocale, locales, localPath, ROUTES, siteUrl } from "@/utils/routes";
@@ -60,13 +61,15 @@ export default async function LocaleLayout({ children, params }: Props) {
         <StyledRegistry>
           <NextIntlClientProvider>
             <ThemeProvider initialMode={theme}>
-              <CartHydration>
-                <Suspense>
-                  <StoreHeader />
-                </Suspense>
-                {children}
-                <StoreFooter />
-              </CartHydration>
+              <StoreProviders>
+                <CartHydration>
+                  <Suspense>
+                    <StoreHeader />
+                  </Suspense>
+                  {children}
+                  <StoreFooter year={new Date().getUTCFullYear()} />
+                </CartHydration>
+              </StoreProviders>
             </ThemeProvider>
           </NextIntlClientProvider>
         </StyledRegistry>

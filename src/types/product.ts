@@ -9,3 +9,8 @@ export interface Product {
 }
 
 export type ProductInput = Pick<Product, "title" | "description" | "price" | "category" | "image">;
+
+export interface CatalogData {
+  readonly products: readonly Product[];
+  readonly categories: readonly string[];
+}

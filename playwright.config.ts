@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const api = "http://127.0.0.1:4402";
-const baseURL = "http://127.0.0.1:3000";
+const baseURL = "http://127.0.0.1:3102";
 
 export default defineConfig({
   testDir: "./tests",
@@ -21,11 +21,11 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: "pnpm dev",
+      command: "pnpm exec next dev --hostname 127.0.0.1 --port 3102",
       url: baseURL + "/en/cart",
       timeout: 120000,
       reuseExistingServer: false,
-      env: { FAKE_STORE_API_URL: api, SITE_URL: baseURL },
+      env: { FAKE_STORE_API_URL: api, SITE_URL: baseURL, NOVA_NEXT_DIST_DIR: ".next-playwright" },
     },
   ],
 });

@@ -2,26 +2,24 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { Skeleton } from "@/shared/Skeleton";
 import styled from "styled-components";
-import { Link } from "@/dictionary/navigation";
-import ClearCartConfirmation from "@/modals/ClearCartConfirmation";
-import { Banner, Button, ButtonLink, EmptyState } from "@/shared/controls";
+import CartConfirmation from "@/modals/CartConfirmation";
+import { useToast } from "@/shared/Toast";
+import { Button, ButtonLink, EmptyState } from "@/shared/controls";
 import Icon from "@/shared/Icon";
 import { cartTotal, countUnits, useCart, type CartLine } from "@/storage/cart";
 import { formatNumber, formatPrice } from "@/utils/format";
-import { defaultLocale, isLocale, ROUTES } from "@/utils/routes";
+import { defaultLocale, isLocale } from "@/utils/routes";
 import CartLineItem from "./CartLineItem";
 
 const Content = styled.main`
   max-width: 1440px;
-  margin: auto;
+  margin-inline: auto;
+  width: 100%;
   padding: 22px var(--gutter);
   display: grid;
   gap: 20px;
-  .breadcrumbs {
-    color: var(--muted);
-    font-size: 13px;
-  }
   h1 {
     font-size: 31px;
   }
@@ -37,11 +35,8 @@ const Content = styled.main`
   .toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
-  }
-  .toolbar strong {
-    font-size: 15px;
   }
   .summary {
     display: grid;
@@ -92,51 +87,41 @@ export default function CartScreen() {
   const hydrated = useCart((cart) => cart.hydrated);
   const remove = useCart((cart) => cart.remove);
   const clear = useCart((cart) => cart.clear);
-  const [confirm, setConfirm] = useState(false);
-  const [notice, setNotice] = useState("");
-  const trigger = useRef<HTMLButtonElement>(null);
+  const [confirm, setConfirm] = useState<"clear" | CartLine | null>(null);
+  const toast = useToast();
   const heading = useRef<HTMLHeadingElement>(null);
   const units = countUnits(lines);
 
-  function cancel() {
-    setConfirm(false);
-    trigger.current?.focus();
-  }
-
-  function removeLine(line: CartLine) {
-    remove(line.product.id);
-    setNotice(t("removed", { name: line.product.title }));
-    if (lines.length === 1) {
-      setConfirm(false);
-      heading.current?.focus();
+  function confirmAction() {
+    if (!confirm) return;
+    if (confirm === "clear") {
+      clear();
+      toast(t("cartCleared"), "success");
+    } else {
+      remove(confirm.product.id);
+      toast(t("removed", { name: confirm.product.title }), "success");
     }
+    setConfirm(null);
+    requestAnimationFrame(() => heading.current?.focus());
   }
 
   return (
     <Content>
-      <div className="breadcrumbs">
-        <Link href={ROUTES.home}>{t("home")}</Link>
-        <span aria-hidden="true"> / </span>
-        {t("cart")}
-      </div>
       <h1 ref={heading} tabIndex={-1}>
         {t("cart")}
       </h1>
-      {notice && <Banner title={notice} />}
       {!hydrated ? (
-        <p role="status">{t("loadingCart")}</p>
+        <Skeleton role="status" aria-label={t("loadingCart")} style={{ height: 170 }} />
       ) : lines.length ? (
         <>
           <div className="columns">
             <section className="items" aria-label={t("cart")}>
               <div className="toolbar">
-                <strong>{t("items", { count: units })}</strong>
                 <Button
-                  ref={trigger}
                   type="button"
                   $kind="danger"
-                  aria-expanded={confirm}
-                  onClick={() => setConfirm(true)}
+                  aria-haspopup="dialog"
+                  onClick={() => setConfirm("clear")}
                 >
                   <Icon name="trash" size={17} />
                   {t("clearCart")}
@@ -147,7 +132,7 @@ export default function CartScreen() {
                   key={line.product.id}
                   line={line}
                   locale={locale}
-                  onRemove={removeLine}
+                  onRemove={setConfirm}
                 />
               ))}
             </section>
@@ -168,14 +153,10 @@ export default function CartScreen() {
             </aside>
           </div>
           {confirm && (
-            <ClearCartConfirmation
-              onCancel={cancel}
-              onConfirm={() => {
-                clear();
-                setConfirm(false);
-                setNotice(t("cartCleared"));
-                heading.current?.focus();
-              }}
+            <CartConfirmation
+              itemName={confirm === "clear" ? undefined : confirm.product.title}
+              onCancel={() => setConfirm(null)}
+              onConfirm={confirmAction}
             />
           )}
         </>

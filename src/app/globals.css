@@ -3,7 +3,7 @@
 
 :root {
   color-scheme: light;
-  --bg: #f7f7fa;
+  --bg: #fcfaf6;
   --surface: #ffffff;
   --soft: #f1f3f7;
   --line: #dfe4ec;
@@ -19,6 +19,7 @@
   --error-bg: #fdeded;
   --focus: #3156ce;
   --gutter: 16px;
+  --navy: #122139;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -55,11 +56,17 @@
 }
 body {
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   font:
     16px/1.38 Inter,
     sans-serif;
   color: var(--ink);
   background: var(--bg);
+}
+body > footer {
+  margin-block-start: auto;
 }
 :lang(fa) body {
   font-family: Vazirmatn, Inter, sans-serif;

@@ -2,7 +2,15 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 const config = [
-  { ignores: [".next/**", "next-env.d.ts", "playwright-report/**", "test-results/**"] },
+  {
+    ignores: [
+      ".next/**",
+      ".next-playwright/**",
+      "next-env.d.ts",
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
   ...nextVitals,
   ...nextTypescript,
   {

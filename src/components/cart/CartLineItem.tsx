@@ -122,7 +122,12 @@ export default function CartLineItem({
           </Button>
         </div>
         <strong>{formatPrice(lineMinorTotal(line) / 100, locale)}</strong>
-        <IconButton type="button" aria-label={t("remove")} onClick={() => onRemove(line)}>
+        <IconButton
+          type="button"
+          aria-label={t("remove")}
+          aria-haspopup="dialog"
+          onClick={() => onRemove(line)}
+        >
           <Icon name="trash" size={19} />
         </IconButton>
       </div>

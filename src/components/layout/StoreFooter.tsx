@@ -1,13 +1,14 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import styled from "styled-components";
 import { Link } from "@/dictionary/navigation";
 import { Brand } from "@/shared/controls";
+import SocialLinks from "./SocialLinks";
 import { ROUTES } from "@/utils/routes";
 
 const Footer = styled.footer`
-  background: #122139;
+  background: var(--navy);
   color: white;
   .inner {
     max-width: 1440px;
@@ -17,18 +18,23 @@ const Footer = styled.footer`
     gap: 20px;
   }
   .groups {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
     justify-content: space-between;
     gap: 18px;
+  }
+  .group:first-child,
+  .group:last-child {
+    grid-column: 1/-1;
+  }
+  .group:first-child > span {
+    justify-self: start;
   }
   .group {
     display: grid;
     align-content: start;
     gap: 6px;
-  }
-  .group:nth-child(n + 3) {
-    display: none;
   }
   strong {
     font-size: 14px;
@@ -52,18 +58,18 @@ const Footer = styled.footer`
       padding-block: 32px;
     }
     .groups {
+      display: flex;
+      flex-wrap: wrap;
       gap: 28px;
-    }
-    .group:nth-child(n + 3) {
-      display: grid;
     }
   }
 `;
 
-export default function StoreFooter() {
+export default function StoreFooter({ year }: { readonly year: number }) {
   const t = useTranslations("Store");
+  const format = useFormatter();
   return (
-    <Footer>
+    <Footer id="contact">
       <div className="inner">
         <div className="groups">
           <div className="group">
@@ -84,11 +90,12 @@ export default function StoreFooter() {
           </div>
           <div className="group">
             <strong>{t("follow")}</strong>
-            <span className="link-label">Instagram</span>
-            <span className="link-label">Telegram</span>
+            <SocialLinks />
           </div>
         </div>
-        <small className="copyright">{t("rights")}</small>
+        <small className="copyright">
+          {t("rights", { year: format.number(year, { useGrouping: false }) })}
+        </small>
       </div>
     </Footer>
   );

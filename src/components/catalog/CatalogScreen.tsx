@@ -1,14 +1,20 @@
 "use client";
 
+import { useState } from "react";
+import Pagination from "@/shared/Pagination";
+import { Skeleton } from "@/shared/Skeleton";
+import ContactSection from "@/components/layout/ContactSection";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCatalogQuery } from "@/requests/catalogQuery";
+import { isCancelledError } from "@tanstack/react-query";
+import { useDismissToast, useToast } from "@/shared/Toast";
 import styled from "styled-components";
-import { Banner, Button, EmptyState, IconButton } from "@/shared/controls";
+import { Banner, EmptyState } from "@/shared/controls";
 import Icon, { type IconName } from "@/shared/Icon";
 import { useCart } from "@/storage/cart";
 import { Category, Sort } from "@/types/enums/catalog";
-import type { Product } from "@/types/product";
+import type { CatalogData } from "@/types/product";
 import {
   groupCategory,
   readCatalogQuery,
@@ -19,15 +25,12 @@ import {
 import { formatNumber } from "@/utils/format";
 import { defaultLocale, isLocale, localPath, ROUTES } from "@/utils/routes";
 import CatalogHero from "./CatalogHero";
+import CatalogSort from "./CatalogSort";
 import ProductCard from "./ProductCard";
 
 export type CatalogState =
   | { readonly status: "loading" | "error" }
-  | {
-      readonly status: "success";
-      readonly products: readonly Product[];
-      readonly categories: readonly string[];
-    };
+  | { readonly status: "success"; readonly category: Category; readonly sort: Sort; readonly data: CatalogData };
 
 const CATEGORIES: { readonly key: Category; readonly icon: IconName }[] = [
   { key: Category.All, icon: "grid" },
@@ -38,7 +41,8 @@ const CATEGORIES: { readonly key: Category; readonly icon: IconName }[] = [
 
 const Content = styled.main`
   max-width: 1440px;
-  margin: auto;
+  margin-inline: auto;
+  width: 100%;
   padding: 16px var(--gutter);
   display: grid;
   gap: 20px;
@@ -49,15 +53,17 @@ const Content = styled.main`
 `;
 const Filters = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, max-content);
-  justify-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 360px);
+  justify-self: center;
   gap: 8px;
   button {
     display: flex;
     gap: 6px;
     align-items: center;
     min-height: 44px;
-    padding: 0 12px;
+    justify-content: center;
+    padding: 0 10px;
     border: 1px solid var(--line);
     border-radius: 22px;
     color: var(--muted);
@@ -73,6 +79,8 @@ const Filters = styled.div`
   @media (min-width: 768px) {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
+    width: auto;
     gap: 9px;
     button {
       min-height: 40px;
@@ -102,26 +110,6 @@ const Results = styled.section`
     color: var(--muted);
     font-size: 13px;
   }
-  .sort-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px 12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-  }
-  .sort-options button {
-    border-radius: 18px;
-    min-height: 36px;
-    padding-inline: 12px;
-    font-size: 13px;
-  }
-  .sort-options button[aria-pressed="true"] {
-    color: var(--brand-ink);
-    background: var(--tint);
-    border-color: var(--brand);
-  }
   @media (min-width: 768px) {
     gap: 26px;
     .heading {
@@ -144,101 +132,48 @@ const Grid = styled.div`
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 `;
-const Skeleton = styled.div`
-  min-height: 300px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
+const CardSkeleton = styled.div`
+  min-width: 0;
   padding: 12px;
-  div {
-    background: var(--soft);
-    height: 14px;
-    width: 59%;
-    border-radius: 5px;
-    margin-block-end: 12px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  span:first-child {
+    aspect-ratio: 4/3;
   }
-  div:first-child {
-    width: 100%;
-    height: 110px;
-  }
-  div:last-child {
-    width: 100%;
+  span:last-child {
     height: 44px;
   }
-  @media (min-width: 768px) {
-    min-height: 350px;
-    div:first-child {
-      height: 160px;
-    }
-  }
-  @media (min-width: 1024px) {
-    min-height: 420px;
-    div:first-child {
-      height: 224px;
-    }
-  }
 `;
-const Pages = styled.nav`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  button {
-    width: 44px;
-    padding: 0;
-  }
-  [dir="ltr"] & .previous .nova-icon,
-  [dir="rtl"] & .next .nova-icon {
-    transform: scaleX(-1);
-  }
-`;
-const Value = styled.div`
-  background: var(--tint);
-  color: var(--brand-ink);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  @media (min-width: 768px) {
-    font-size: 15px;
-  }
-`;
-
 export default function CatalogScreen({ state }: { readonly state: CatalogState }) {
   const t = useTranslations("Store");
   const rawLocale = useLocale();
   const locale = isLocale(rawLocale) ? rawLocale : defaultLocale;
   const query = readCatalogQuery(useSearchParams());
-  const router = useRouter();
-  const [sortOpen, setSortOpen] = useState(false);
-  const sortTrigger = useRef<HTMLButtonElement>(null);
-  const [added, setAdded] = useState("");
-  const [retrying, startRetry] = useTransition();
+  const initialData =
+    state.status === "success" && state.category === query.category && state.sort === query.sort ? state.data : undefined;
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const catalog = useCatalogQuery(
+    query.category,
+    query.sort,
+    state.status === "success" || hasLoaded,
+    initialData
+  );
+  const toast = useToast();
+  const dismiss = useDismissToast();
   const add = useCart((cart) => cart.add);
   const hydrated = useCart((cart) => cart.hydrated);
-  const products = state.status === "success" ? state.products : [];
-  const available =
-    state.status === "success" ? new Set(state.categories.map(groupCategory)) : null;
-  const { items, page, pages } = selectCatalog(products, query, locale);
-  const isLoading = state.status === "loading" || retrying;
-  const isError = state.status === "error" && !retrying;
+  const data = state.status === "loading" ? undefined : catalog.data;
+  const products = data?.products ?? [];
+  const categories = state.status === "success" ? state.data.categories : data?.categories;
+  const available = categories?.length ? new Set(categories.map(groupCategory)) : null;
+  const { items, page, pages } = selectCatalog(products, query, locale, (category) => t(category));
+  const isLoading = state.status === "loading" || catalog.isFetching;
+  const isError = !isLoading && (catalog.isError || (!data && state.status === "error"));
   const home =
-    !query.q &&
-    query.category === Category.All &&
-    query.sort === Sort.Featured &&
-    query.page === 1 &&
-    !added &&
-    !sortOpen;
-  const labels = {
-    [Sort.Featured]: t("featured"),
-    [Sort.PriceAscending]: t("priceAsc"),
-    [Sort.PriceDescending]: t("priceDesc"),
-    [Sort.TitleAscending]: t("titleAsc"),
-  };
+    !query.q && query.category === Category.All && query.sort === Sort.Featured && query.page === 1;
   const heading = query.q
     ? t("searchResults")
     : query.category === Category.All
@@ -249,77 +184,62 @@ export default function CatalogScreen({ state }: { readonly state: CatalogState 
   function update(next: Partial<CatalogQuery>) {
     const suffix = writeCatalogQuery({ ...query, page: 1, ...next });
     window.history.pushState(null, "", localPath(locale, ROUTES.home) + suffix + "#catalog");
-    setSortOpen(false);
-    setAdded("");
+  }
+
+  async function retry() {
+    const notice = toast(t("loading"), "pending");
+    try {
+      await catalog.refetch({ throwOnError: true, cancelRefetch: false });
+      setHasLoaded(true);
+      toast(t("loaded"), "success", notice);
+    } catch (error) {
+      if (isCancelledError(error)) dismiss(notice);
+      else toast(t("error"), "error", notice);
+    }
   }
 
   return (
     <Content>
-      {home && <CatalogHero />}
-      {added && <Banner title={t("added", { name: added })} detail={t("addedDetail")} />}
+      {home && (
+        <CatalogHero
+          products={products}
+          loading={isLoading}
+          onExplore={(category) => {
+            if (category !== Category.All) update({ category });
+            document.getElementById("catalog")?.scrollIntoView();
+          }}
+        />
+      )}
       <Filters id="categories" aria-label={t("categories")}>
-        {CATEGORIES.filter(
-          ({ key }) => !available || key === Category.All || available.has(key)
-        ).map(({ key, icon }) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={query.category === key}
-            onClick={() => update({ category: key })}
-          >
-            <Icon name={icon} size={15} />
-            {t(key)}
-          </button>
-        ))}
+        {state.status === "loading" &&
+          Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} aria-hidden="true" style={{ height: 40, width: 90 }} />
+          ))}
+        {state.status !== "loading" &&
+          CATEGORIES.filter(
+            ({ key }) => !available || key === Category.All || available.has(key)
+          ).map(({ key, icon }) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={query.category === key}
+              onClick={() => update({ category: key })}
+            >
+              <Icon name={icon} size={15} />
+              {t(key)}
+            </button>
+          ))}
       </Filters>
-      <Results
-        id="catalog"
-        aria-busy={isLoading}
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && sortOpen) {
-            setSortOpen(false);
-            sortTrigger.current?.focus();
-          }
-        }}
-      >
+      <Results id="catalog" aria-busy={isLoading}>
         <div className="heading">
           <div>
-            <small dir="ltr">01 / THE NOVA COLLECTION</small>
             <Title>{heading}</Title>
-            <p role="status">
+            <p role="status" className="visually-hidden">
               {isLoading ? t("loading") : t("count", { count: formatNumber(items.length, locale) })}
             </p>
           </div>
-          <Button
-            ref={sortTrigger}
-            $kind="secondary"
-            type="button"
-            aria-expanded={sortOpen}
-            aria-controls="catalog-sort"
-            onClick={() => setSortOpen(!sortOpen)}
-          >
-            <Icon name="down" size={17} />
-            {t("sort")}: {labels[query.sort]}
-          </Button>
+          <CatalogSort value={query.sort} onChange={(sort) => update({ sort })} />
         </div>
-        {sortOpen && (
-          <div className="sort-options" id="catalog-sort" role="group" aria-label={t("sort")}>
-            {Object.values(Sort).map((sort) => (
-              <Button
-                key={sort}
-                type="button"
-                $kind="secondary"
-                aria-pressed={query.sort === sort}
-                onClick={() => {
-                  update({ sort });
-                  sortTrigger.current?.focus();
-                }}
-              >
-                {labels[sort]}
-              </Button>
-            ))}
-          </div>
-        )}
         {isError ? (
           <>
             <Banner variant="error" title={t("error")} detail={t("errorHelp")} />
@@ -328,18 +248,19 @@ export default function CatalogScreen({ state }: { readonly state: CatalogState 
               title={t("retryHeading")}
               detail={t("retryHelp")}
               action={t("retry")}
-              onAction={() => startRetry(() => router.refresh())}
+              disabled={!hydrated}
+              onAction={() => void retry()}
             />
           </>
         ) : isLoading ? (
           <Grid aria-hidden="true">
             {Array.from({ length: 6 }, (_, index) => (
-              <Skeleton key={index}>
-                <div />
-                <div />
-                <div />
-                <div />
-              </Skeleton>
+              <CardSkeleton key={index}>
+                <Skeleton />
+                <Skeleton />
+                <Skeleton />
+                <Skeleton />
+              </CardSkeleton>
             ))}
           </Grid>
         ) : items.length ? (
@@ -353,44 +274,22 @@ export default function CatalogScreen({ state }: { readonly state: CatalogState 
                   disabled={!hydrated}
                   onAdd={(item) => {
                     add(item);
-                    setAdded(item.title);
+                    toast(t("added", { name: item.title }), "success");
                   }}
                 />
               ))}
             </Grid>
             {pages > 1 && (
-              <Pages aria-label={t("pagination")}>
-                <IconButton
-                  className="previous"
-                  type="button"
-                  disabled={page === 1}
-                  aria-label={t("previous")}
-                  onClick={() => update({ page: page - 1 })}
-                >
-                  <Icon name="chevron" size={17} />
-                </IconButton>
-                {Array.from({ length: pages }, (_, index) => index + 1).map((number) => (
-                  <Button
-                    key={number}
-                    type="button"
-                    $kind={page === number ? "primary" : "secondary"}
-                    aria-current={page === number ? "page" : undefined}
-                    aria-label={t("page", { page: formatNumber(number, locale) })}
-                    onClick={() => update({ page: number })}
-                  >
-                    {formatNumber(number, locale)}
-                  </Button>
-                ))}
-                <IconButton
-                  className="next"
-                  type="button"
-                  disabled={page === pages}
-                  aria-label={t("next")}
-                  onClick={() => update({ page: page + 1 })}
-                >
-                  <Icon name="chevron" size={17} />
-                </IconButton>
-              </Pages>
+              <Pagination
+                page={page}
+                pages={pages}
+                label={t("pagination")}
+                previous={t("previous")}
+                next={t("next")}
+                format={(value) => formatNumber(value, locale)}
+                pageLabel={(value) => t("page", { page: formatNumber(value, locale) })}
+                onChange={(value) => update({ page: value })}
+              />
             )}
           </>
         ) : products.length ? (
@@ -407,16 +306,12 @@ export default function CatalogScreen({ state }: { readonly state: CatalogState 
             title={t("noProducts")}
             detail={t("noProductsHelp")}
             action={t("retry")}
-            onAction={() => startRetry(() => router.refresh())}
+            disabled={!hydrated}
+            onAction={() => void retry()}
           />
         )}
       </Results>
-      {home && (
-        <Value>
-          <Icon name="bag" size={21} />
-          {t("cartValue")}
-        </Value>
-      )}
+      <ContactSection />
     </Content>
   );
 }
