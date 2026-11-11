@@ -22,14 +22,50 @@ const Layout = styled.main`
   display: grid;
   gap: 24px;
   align-content: start;
-  .back { color: var(--brand-ink); font-weight: 700; }
-  .product { display: grid; gap: 24px; }
-  .photo { min-height: 320px; aspect-ratio: 4 / 3; border: 1px solid var(--line); border-radius: 18px; }
-  .info { display: grid; align-content: start; justify-items: start; gap: 20px; }
-  h1 { font-size: clamp(25px, 3vw, 40px); line-height: 1.35; }
-  .price { font-size: clamp(22px, 2vw, 30px); color: var(--brand-ink); }
-  .description { line-height: 1.9; color: var(--muted); overflow-wrap: anywhere; }
-  @media (min-width: 768px) { .product { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .back {
+    color: var(--brand-ink);
+    font-weight: 700;
+  }
+  .product {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    align-items: start;
+  }
+  .product > * {
+    min-width: 0;
+  }
+  .photo {
+    width: 100%;
+    min-height: clamp(220px, 42vw, 420px);
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+  }
+  .info {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: 20px;
+  }
+  h1 {
+    font-size: clamp(25px, 3vw, 40px);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .price {
+    font-size: clamp(22px, 2vw, 30px);
+    color: var(--brand-ink);
+    overflow-wrap: anywhere;
+  }
+  .description {
+    line-height: 1.9;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .info > button {
+    max-width: 100%;
+  }
 `;
 
 export default function ProductPageContent({ product }: { readonly product: Product }) {
@@ -42,16 +78,31 @@ export default function ProductPageContent({ product }: { readonly product: Prod
   const category = groupCategory(product.category);
   return (
     <Layout>
-      <Link className="back" href={ROUTES.home + "#catalog"}>{t("goHome")}</Link>
+      <Link className="back" href={ROUTES.home + "#catalog"}>
+        {t("goHome")}
+      </Link>
       <div className="product">
         <ProductPhoto className="photo" src={product.image} alt={product.title} />
         <div className="info">
-          <CategoryBadge category={category} label={category === Category.All ? product.category : t(category)} />
+          <CategoryBadge
+            category={category}
+            label={category === Category.All ? product.category : t(category)}
+          />
           <h1 dir="auto">{product.title}</h1>
           <strong className="price">{formatPrice(product.price, locale)}</strong>
-          <p className="description" dir="auto">{product.description}</p>
-          <Button type="button" disabled={!hydrated} onClick={() => { add(product); toast(t("added", { name: product.title }), "success"); }}>
-            <Icon name="bag" size={18} />{t("add")}
+          <p className="description" dir="auto">
+            {product.description}
+          </p>
+          <Button
+            type="button"
+            disabled={!hydrated}
+            onClick={() => {
+              add(product);
+              toast(t("added", { name: product.title }), "success");
+            }}
+          >
+            <Icon name="bag" size={18} />
+            {t("add")}
           </Button>
         </div>
       </div>

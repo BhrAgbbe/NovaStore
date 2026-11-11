@@ -5,7 +5,7 @@ import { Skeleton } from "@/shared/Skeleton";
 import { groupCategory } from "@/utils/catalog";
 import type { Product } from "@/types/product";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { Category } from "@/types/enums/catalog";
 import { useTranslations } from "next-intl";
 import styled from "styled-components";
@@ -13,9 +13,21 @@ import hero from "@/assets/Images/hero.jpg";
 import { Button } from "@/shared/controls";
 import Icon from "@/shared/Icon";
 
-const Hero = styled.section`
-  display: grid;
-  touch-action: pan-y pinch-zoom;
+const Hero = styled.div`
+  border-radius: 18px;
+  overflow: hidden;
+  background: #f4e8db;
+  color: #122139;
+  .slide {
+    display: grid;
+    touch-action: pan-y pinch-zoom;
+    user-select: none;
+    transition: transform 200ms ease;
+  }
+  .slide[data-dragging="true"] {
+    transition: none;
+    cursor: grabbing;
+  }
   .copy,
   .photo {
     animation: slide-appear 200ms ease-out;
@@ -28,16 +40,6 @@ const Hero = styled.section`
       opacity: 1;
     }
   }
-  @media (prefers-reduced-motion: reduce) {
-    .copy,
-    .photo {
-      animation: none;
-    }
-  }
-  border-radius: 18px;
-  overflow: hidden;
-  background: #f4e8db;
-  color: #122139;
   .copy {
     padding: 20px;
     display: grid;
@@ -79,8 +81,10 @@ const Hero = styled.section`
     color: #b1c0d3;
   }
   @media (min-width: 768px) {
-    min-height: 276px;
-    grid-template-columns: 48% 52%;
+    .slide {
+      min-height: 276px;
+      grid-template-columns: 48% 52%;
+    }
     .copy {
       padding: 24px 26px;
     }
@@ -98,12 +102,23 @@ const Hero = styled.section`
     }
   }
   @media (min-width: 1024px) {
-    min-height: 350px;
+    .slide {
+      min-height: 350px;
+    }
     .copy {
       padding: 24px clamp(26px, 3.33vw, 48px);
     }
     h1 {
       font-size: 49px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .slide {
+      transition: none;
+    }
+    .copy,
+    .photo {
+      animation: none;
     }
   }
 `;
@@ -150,6 +165,9 @@ const SLIDES = [
   },
 ] as const;
 
+const THRESHOLD = 40;
+const MAX_OFFSET = 160;
+
 export default function CatalogHero({
   onExplore,
   products,
@@ -172,19 +190,77 @@ export default function CatalogHero({
   const image = photos[SLIDES.indexOf(slide)];
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const drag = useRef<{ x: number; y: number; pointerId: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
-    if (hovered || focused || paused || slides.length < 2) return;
+    if (hovered || focused || dragging || slides.length < 2) return;
     const interval = setInterval(() => {
       if (!document.hidden && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
         setIndex((current) => (current + 1) % slides.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [hovered, focused, paused, slides.length, position]);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  }, [hovered, focused, dragging, slides.length, position]);
+
+  useEffect(() => () => clearTimeout(settle.current), []);
+
   function move(step: number) {
+    setOffset(0);
     setIndex((current) => (current + step + slides.length) % slides.length);
   }
+
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    drag.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, moved: false };
+  }
+
+  function moveDrag(event: PointerEvent<HTMLDivElement>) {
+    const start = drag.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!start.moved) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return;
+      start.moved = true;
+      setDragging(true);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic pointers cannot be captured; element listeners still receive the release.
+      }
+    }
+    event.preventDefault();
+    setOffset(Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, dx)));
+  }
+
+  function endDrag(event: PointerEvent<HTMLDivElement>) {
+    const start = drag.current;
+    drag.current = null;
+    setDragging(false);
+    setOffset(0);
+    if (!start?.moved) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    suppressClick.current = true;
+    clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      suppressClick.current = false;
+    }, 300);
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+    const forward = document.documentElement.dir === "rtl" ? dx > 0 : dx < 0;
+    move(forward ? 1 : -1);
+  }
+
+  function cancelDrag() {
+    drag.current = null;
+    setDragging(false);
+    setOffset(0);
+  }
+
   return (
     <section
       aria-label={t("carousel")}
@@ -196,45 +272,46 @@ export default function CatalogHero({
       }}
     >
       <Hero
-        as="div"
-        aria-live={paused ? "polite" : "off"}
-        onPointerDown={(event) => {
-          if (event.pointerType === "touch" && event.isPrimary) {
-            touchStart.current = { x: event.clientX, y: event.clientY };
-          }
+        aria-live="off"
+        onClickCapture={(event) => {
+          if (!suppressClick.current) return;
+          event.preventDefault();
+          event.stopPropagation();
         }}
-        onPointerCancel={() => {
-          touchStart.current = null;
-        }}
-        onPointerUp={(event) => {
-          const start = touchStart.current;
-          touchStart.current = null;
-          if (!start || event.pointerType !== "touch") return;
-          const dx = event.clientX - start.x;
-          const dy = event.clientY - start.y;
-          if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return;
-          move((dx < 0 ? 1 : -1) * (document.documentElement.dir === "rtl" ? -1 : 1));
-        }}
+        onDragStart={(event) => event.preventDefault()}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={cancelDrag}
       >
-        <div key={slide.title} className="copy">
-          <h1>{t(slide.title)}</h1>
-          <p>{t(slide.description)}</p>
-          <Button type="button" onClick={() => onExplore(slide.category)}>
-            <Icon name="arrow" size={17} directional />
-            {t("explore")}
-          </Button>
+        <div
+          className="slide"
+          data-dragging={dragging}
+          style={{
+            transform: offset ? `translateX(${offset}px)` : undefined,
+            cursor: dragging ? "grabbing" : undefined,
+          }}
+        >
+          <div key={slide.title} className="copy">
+            <h1>{t(slide.title)}</h1>
+            <p>{t(slide.description)}</p>
+            <Button type="button" onClick={() => onExplore(slide.category)}>
+              <Icon name="arrow" size={17} directional />
+              {t("explore")}
+            </Button>
+          </div>
+          {loading ? (
+            <div className="photo">
+              <Skeleton className="photo-skeleton" aria-hidden="true" />
+            </div>
+          ) : slide.category === Category.All ? (
+            <div className="photo">
+              <Image src={hero} fill priority sizes="(max-width: 767px) 100vw, 50vw" alt="" />
+            </div>
+          ) : (
+            image && <ProductPhoto key={image} className="photo product-photo" src={image} />
+          )}
         </div>
-        {loading ? (
-          <div className="photo">
-            <Skeleton className="photo-skeleton" aria-hidden="true" />
-          </div>
-        ) : slide.category === Category.All ? (
-          <div className="photo">
-            <Image src={hero} fill priority sizes="(max-width: 767px) 100vw, 50vw" alt="" />
-          </div>
-        ) : (
-          image && <ProductPhoto key={image} className="photo product-photo" src={image} />
-        )}
       </Hero>
       {slides.length > 1 && (
         <Controls>
@@ -248,7 +325,6 @@ export default function CatalogHero({
               onClick={() => setIndex(slideIndex)}
             />
           ))}
-         
         </Controls>
       )}
     </section>

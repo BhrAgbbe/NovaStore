@@ -37,7 +37,7 @@ export default function ProductPhoto({
           alt={alt}
           fill
           unoptimized
-          sizes="(max-width: 767px) 50vw, 33vw"
+          sizes="(max-width: 900px) 100vw, 50vw"
           onError={(event) => {
             event.currentTarget.hidden = true;
           }}

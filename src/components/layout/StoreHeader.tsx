@@ -9,6 +9,7 @@ import { useTheme } from "@/context/theme";
 import { Link, usePathname, useRouter } from "@/dictionary/navigation";
 import Modal from "@/modals/Modal";
 import { Brand, IconButton } from "@/shared/controls";
+import Dropdown from "@/shared/Dropdown";
 import Icon from "@/shared/Icon";
 import { countUnits, useCart } from "@/storage/cart";
 import { Category } from "@/types/enums/catalog";
@@ -98,16 +99,8 @@ const Header = styled.header`
   .search-box[data-expanded="true"] {
     display: block;
   }
-  .category-select {
-    min-height: 44px;
-    max-width: 100%;
-    background: var(--surface);
-    color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding-inline: 8px;
-    font: inherit;
-    cursor: pointer;
+  .nav-category {
+    max-width: 160px;
   }
   @media (min-width: 768px) {
     .inner {
@@ -144,9 +137,6 @@ const Header = styled.header`
       gap: 3px;
       position: relative;
     }
-    .navigation .category-select {
-      max-width: 150px;
-    }
     .navigation a[aria-current="page"]::after {
       content: "";
       position: absolute;
@@ -168,16 +158,77 @@ const Drawer = styled.nav`
     border-radius: 10px;
     background: var(--soft);
   }
-  .category-select {
+  .tree {
+    display: grid;
+    gap: 4px;
+  }
+  .tree-parent {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
     min-height: 44px;
-    max-width: 100%;
-    background: var(--surface);
+    padding-inline: 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--soft);
     color: var(--ink);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding-inline: 8px;
     font: inherit;
-    cursor: pointer;
+    font-weight: 700;
+    text-align: start;
+  }
+  .tree-parent .nova-icon {
+    transition: transform 160ms ease;
+  }
+  .tree-parent[aria-expanded="true"] .nova-icon {
+    transform: rotate(180deg);
+  }
+  .tree-children {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 180ms ease;
+  }
+  .tree-children[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+  .tree-inner {
+    display: grid;
+    gap: 2px;
+    min-height: 0;
+    overflow: hidden;
+    margin-inline-start: 13px;
+    padding-inline-start: 10px;
+    border-inline-start: 1px solid var(--line);
+  }
+  .tree-children[data-open="true"] .tree-inner {
+    padding-block: 6px 2px;
+  }
+  .tree-link {
+    min-height: 40px;
+    padding-inline: 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    text-align: start;
+  }
+  .tree-link:hover,
+  .tree-link:focus-visible {
+    background: var(--soft);
+    color: var(--ink);
+  }
+  .tree-link[aria-current="true"] {
+    background: var(--tint);
+    color: var(--brand-ink);
+    font-weight: 700;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tree-parent .nova-icon,
+    .tree-children {
+      transition: none;
+    }
   }
   .preferences {
     display: flex;
@@ -190,14 +241,18 @@ const Search = styled(Form)`
   display: flex;
   gap: 9px;
   padding: 0 12px;
-  min-height: 44px;
-  border-radius: 10px;
+  min-height: 46px;
+  padding-inline: 16px 14px;
+  border-radius: 999px;
   background: var(--soft);
-  border: 2px solid var(--line);
+  border: 2px solid #c9d2df;
   color: var(--muted);
   align-items: center;
   grid-column: 1/-1;
   margin: 6px 0;
+  [data-theme="dark"] & {
+    border-color: var(--line);
+  }
   &:focus-within {
     border-color: var(--focus);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 20%, transparent);
@@ -210,6 +265,9 @@ const Search = styled(Form)`
     background: none;
     color: var(--ink);
     font-size: 13px;
+  }
+  > button {
+    order: 2;
   }
   input::-webkit-search-cancel-button {
     appearance: none;
@@ -231,10 +289,10 @@ const Search = styled(Form)`
   }
   @media (min-width: 768px) {
     margin: 0;
-    width: clamp(156px, 20vw, 245px);
+    width: clamp(176px, 22vw, 260px);
   }
   @media (min-width: 1024px) {
-    width: 252px;
+    width: 268px;
   }
 `;
 
@@ -247,11 +305,13 @@ export default function StoreHeader() {
   const router = useRouter();
   const { mode, toggle } = useTheme();
   const [menu, setMenu] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchBox = useRef<HTMLDivElement>(null);
   const searchTrigger = useRef<HTMLButtonElement>(null);
   const searchId = useId();
   const searchError = useId();
+  const treeId = useId();
   const units = useCart((state) => (state.hydrated ? countUnits(state.lines) : 0));
   const query = readCatalogQuery(params);
   const nextLocale = locale === "fa" ? "en" : "fa";
@@ -268,24 +328,22 @@ export default function StoreHeader() {
     setMenu(false);
   }
 
-  const categorySelect = (
-    <select
-      className="category-select"
-      aria-label={t("categories")}
+  const categoryOptions = Object.values(Category).map((category) => ({
+    value: category,
+    label: t(category),
+  }));
+  const categoryMenu = (
+    <Dropdown
+      className="nav-category"
+      variant="borderless"
+      label={t("categories")}
+      displayLabel={t("categories")}
       value={query.category}
-      onChange={(event) => {
-        const category = Object.values(Category).find(
-          (value) => value === event.currentTarget.value
-        );
-        if (category) updateCatalog({ category });
+      options={categoryOptions}
+      onChange={(category) => {
+        if (category !== query.category) updateCatalog({ category });
       }}
-    >
-      {Object.values(Category).map((category) => (
-        <option key={category} value={category}>
-          {t(category)}
-        </option>
-      ))}
-    </select>
+    />
   );
   const preferences = (
     <>
@@ -339,7 +397,7 @@ export default function StoreHeader() {
             {t("home")}
           </Link>
           <Link href="/#catalog">{t("products")}</Link>
-          {categorySelect}
+          {categoryMenu}
         </nav>
         <div
           ref={searchBox}
@@ -363,34 +421,32 @@ export default function StoreHeader() {
             }}
           >
             {({ values, errors, touched, resetForm }) => (
-              
-                <Search role="search">
-                  <button type="submit" aria-label={t("search")}>
-                    <Icon name="search" size={17} />
+              <Search role="search">
+                <button type="submit" aria-label={t("search")}>
+                  <Icon name="search" size={17} />
+                </button>
+                <Field
+                  type="search"
+                  name="q"
+                  aria-label={t("search")}
+                  placeholder={t("search")}
+                  aria-invalid={!!(errors.q && touched.q)}
+                  aria-describedby={errors.q && touched.q ? searchError : undefined}
+                />
+                {values.q && (
+                  <button
+                    type="button"
+                    aria-label={t("clearSearch")}
+                    onClick={() => {
+                      resetForm({ values: { q: "" } });
+                      updateCatalog({ q: "" });
+                      searchBox.current?.querySelector("input")?.focus();
+                    }}
+                  >
+                    <Icon name="x" size={15} />
                   </button>
-                  <Field
-                    type="search"
-                    name="q"
-                    aria-label={t("search")}
-                    placeholder={t("search")}
-                    aria-invalid={!!(errors.q && touched.q)}
-                    aria-describedby={errors.q && touched.q ? searchError : undefined}
-                  />
-                  {values.q && (
-                    <button
-                      type="button"
-                      aria-label={t("clearSearch")}
-                      onClick={() => {
-                        resetForm({ values: { q: "" } });
-                        updateCatalog({ q: "" });
-                        searchBox.current?.querySelector("input")?.focus();
-                      }}
-                    >
-                      <Icon name="x" size={15} />
-                    </button>
-                  )}
-                </Search>
-              
+                )}
+              </Search>
             )}
           </Formik>
         </div>
@@ -425,10 +481,36 @@ export default function StoreHeader() {
             <Link href={ROUTES.home} onClick={() => setMenu(false)}>
               {t("home")}
             </Link>
-            <Link href="/#catalog" onClick={() => setMenu(false)}>
-              {t("products")}
-            </Link>
-            {categorySelect}
+            <div className="tree">
+              <button
+                type="button"
+                className="tree-parent"
+                aria-expanded={treeOpen}
+                aria-controls={treeId}
+                onClick={() => setTreeOpen(!treeOpen)}
+              >
+                {t("products")}
+                <Icon name="down" size={16} />
+              </button>
+              <div className="tree-children" id={treeId} data-open={treeOpen}>
+                <div className="tree-inner">
+                  {Object.values(Category).map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      className="tree-link"
+                      aria-current={query.category === category ? "true" : undefined}
+                      onClick={() => {
+                        if (category !== query.category) updateCatalog({ category });
+                        setMenu(false);
+                      }}
+                    >
+                      {t(category)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
             <div className="preferences">{preferences}</div>
           </Drawer>
         </Modal>

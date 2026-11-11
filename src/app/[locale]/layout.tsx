@@ -31,9 +31,11 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
     title,
     description,
     alternates: { canonical: path, languages: { fa: "/fa", en: "/en", "x-default": "/fa" } },
+    robots: { index: true, follow: true },
     openGraph: {
       title,
       description,
+      siteName: "NOVA",
       url: path,
       locale: locale === "fa" ? "fa_IR" : "en_US",
       type: "website",
