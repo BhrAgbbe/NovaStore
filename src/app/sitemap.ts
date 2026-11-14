@@ -2,7 +2,8 @@ import type { MetadataRoute } from "next";
 import { getProducts } from "@/requests/catalogApi";
 import { defaultLocale, locales, localPath, productPath, ROUTES, siteUrl } from "@/utils/routes";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
