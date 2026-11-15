@@ -1,29 +1,79 @@
-# NOVA Store
+# فروشگاه اینترنتی NOVA
 
-A public bilingual storefront and browser-persisted cart. It uses Next.js 16 App Router, React, strict TypeScript, next-intl, TanStack Query, Axios, Styled Components, Zustand, Context, Formik, and Yup.
+پورتال عمومی فروشگاه NOVA با Next.js App Router و TypeScript. فروشگاه فارسی و انگلیسی، راست‌چین و چپ‌چین، دارای تم روشن و تاریک، فهرست محصولات، صفحه جزئیات محصول و سبد خرید پایدار در مرورگر است.
 
-## Run locally
+## وضعیت و محدوده
 
-Use Node 24.18.0 and pnpm 10.14.0.
+این پروژه بر پایه سند چالش پیاده‌سازی شده است. API مورد استفاده FakeStoreAPI است؛ بنابراین داده‌ها نمایشی هستند. 
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Persian is the default locale. The English homepage is at `/en`. Set `SITE_URL` to the public origin when deploying so metadata and sitemap URLs use that origin. Set it before building. Optional `NEXT_PUBLIC_NOVA_*_URL` entries in `.env.example` enable links for the corresponding footer icons.
+## پیش‌نیازها
 
-## Architecture
+- Node.js نسخه 24
+- pnpm نسخه 10.14.0
 
-| Location                                   | Responsibility                                                                              |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `app/[locale]`, `app`                      | Thin locale routes, server rendering, localized metadata, global styles, robots and sitemap |
-| `dictionary`, `i18n.ts`, `proxy.ts`        | Locale configuration, bilingual copy, route prefixing, and navigation                       |
-| `components`, `shared`, `modals`, `assets` | Figma screen composition, reusable UI, cart confirmation, and local design assets           |
-| `api`, `requests`, `types/enums`, `utils`  | Dedicated Axios instance, typed endpoints, catalog query rules, and formatting              |
-| `storage`, `context`, `validations`        | Zustand cart persistence, hydration, server style registry, theme, and search validation    |
+نسخه Node در `.node-version` و نسخه package manager در `package.json` ثبت شده است.
 
-The locale and route folders follow the PDF. `src/proxy.ts` sits next to `src/app` as required when using the App Router under `src`. The additional `app/api/catalog` route handles browser retries via a same-origin Axios instance. `FAKE_STORE_API_URL` configures the upstream server-side origin. It calls the same Axios services as the server-rendered catalog and returns `Cache-Control: no-store`. Initial catalog data seeds `useQuery` without a browser request on hydration. Initial errors stay visible until the user explicitly retries.
+## راه‌اندازی محلی
 
-Search matches titles and category labels, combines with the selected category, and applies sorting before six-item pagination. FakeStoreAPI supports an individual category endpoint and a result limit, but it does not support page indexes, localized or grouped category search, or sorting by title and price. The server seeds the initial catalog. Selecting a category reads the documented category endpoint. Apparel combines the two clothing endpoints. Text search, price/title sorting, and paging apply to the API results. Filters, sorting and page state live in the URL. Both clothing categories map to the Apparel chip. The header and mobile navigation use pages 3 and 4 of the PDF for layout. The carousel uses the NOVA hero photo and actual product photos from available categories. It advances every five seconds, pauses on hover or keyboard focus, respects reduced motion, and supports pause, indicators, and swipe gestures. The PDF-inspired contact banner stays actionable. When NEXT_PUBLIC_NOVA_CONTACT_EMAIL is configured it opens an email subscription request; otherwise it reports that subscription is unavailable. The API does not offer a mailing-list endpoint. Social icons without configured URLs are decorative. The locale layout supplies the current UTC year for the copyright line.
+```bash
+pnpm install
+Copy-Item .env.example .env.local
+pnpm dev
+```
 
-Theme initializes from a preference cookie. The Zustand cart persists item snapshots and quantities in local storage and calculates totals at two decimal places. Removal and clearing require confirmation. Live data and images come from FakeStoreAPI. The toman label is a display convention for the original numeric API amounts. Admin’s session changes stay in its own app.
+برنامه در [http://127.0.0.1:3000](http://127.0.0.1:3000) در دسترس است. زبان فارسی پیش‌فرض است و نسخه انگلیسی در `/en` قرار دارد.
 
-## SEO and metadata
+### متغیرهای محیطی
 
-`app/robots.ts` allows the public catalog and excludes `/api/` and both locale cart routes. `app/sitemap.ts` lists both locale homepages plus every product with `hreflang` alternates; it falls back to the homepages if the catalog is unavailable. Locale layouts set `metadataBase`, canonical URLs, locale-specific titles and descriptions, Open Graph data and indexable robots defaults. Product pages add their own title, description, canonical and language alternates.
+| متغیر | کاربرد | مقدار نمونه |
+| --- | --- | --- |
+| `FAKE_STORE_API_URL` | آدرس پایه API که در سمت سرور استفاده می‌شود | `https://fakestoreapi.com` |
+| `SITE_URL` | origin عمومی سایت برای metadata و sitemap؛ پیش از build تنظیم شود | `http://localhost:3000` |
+| `NEXT_PUBLIC_NOVA_INSTAGRAM_URL` | پیوند اختیاری شبکه اجتماعی | خالی در حالت پیش‌فرض |
+| `NEXT_PUBLIC_NOVA_TELEGRAM_URL` | پیوند اختیاری شبکه اجتماعی | خالی در حالت پیش‌فرض |
+| `NEXT_PUBLIC_NOVA_LINKEDIN_URL` | پیوند اختیاری شبکه اجتماعی | خالی در حالت پیش‌فرض |
+| `NEXT_PUBLIC_NOVA_TWITTER_URL` | پیوند اختیاری شبکه اجتماعی | خالی در حالت پیش‌فرض |
+| `NEXT_PUBLIC_NOVA_CONTACT_EMAIL` | ایمیل اختیاری برای پیوند بخش تماس | خالی در حالت پیش‌فرض |
+
+هیچ مقدار محرمانه‌ای نباید در متغیرهای `NEXT_PUBLIC_*` قرار گیرد؛ این مقادیر در مرورگر قابل مشاهده‌اند.
+
+## فرمان‌ها
+
+```bash
+pnpm dev           # اجرای توسعه
+pnpm build         # ساخت نسخه انتشار
+pnpm lint          # اجرای ESLint
+pnpm test          # اجرای تست‌های Playwright
+```
+
+## ساختار پروژه
+
+```text
+src/
+├── api/             # Axios instance و اعتبارسنجی پاسخ‌ها
+├── app/             # App Router، صفحات locale، API route، robots و sitemap
+│   └── [locale]/    # layout و routeهای زبان‌محور
+├── assets/          # فونت‌ها و آیکون‌ها
+├── components/      # اجزای صفحات کاتالوگ، سبد و layout
+├── context/         # Providerها، theme و پیکربندی SSR برای Styled Components
+├── dictionary/      # ترجمه‌ها و تنظیمات مسیریابی next-intl
+├── modals/          # دیالوگ‌های تأیید سبد
+├── requests/        # query و درخواست‌های داده کاتالوگ
+├── shared/          # کنترل‌ها و اجزای عمومی
+├── storage/         # Zustand store و ماندگاری سبد
+├── types/           # مدل‌ها و enumها
+├── utils/           # قالب‌بندی، مسیرها و منطق کاتالوگ
+├── validations/     # اعتبارسنجی ورودی جست‌وجو
+├── i18n.ts          # پیکربندی next-intl
+└── proxy.ts         # مسیریابی locale در نسخه جاری Next.js
+```
+
+## معماری و مدیریت داده
+
+صفحات از App Router و مسیرهای زبان‌محور `[locale]` استفاده می‌کنند. `next-intl` پیام‌ها و مسیریابی دو زبانه را مدیریت می‌کند. `proxy.ts` درخواست‌های locale را هدایت می‌کند. Styled Components با registry سمت سرور پیکربندی شده تا styleهای رندر اولیه جمع‌آوری شوند.
+
+درخواست‌های سرویس کاتالوگ از Axios instance مستقل عبور می‌کنند و `FAKE_STORE_API_URL` را در سمت سرور می‌خوانند. صفحه اولیه با داده رندر سمت سرور ارائه می‌شود و همان داده، TanStack Query را seed می‌کند تا هنگام hydration درخواست تکراری لازم نباشد. برای retry از مرورگر، یک route هم‌مبدأ `/api/catalog` وجود دارد. فیلترها، مرتب‌سازی و صفحه از URL خوانده می‌شوند.
+
+## منابع
+
+- [مستند FakeStoreAPI](https://fakestoreapi.com/docs)
